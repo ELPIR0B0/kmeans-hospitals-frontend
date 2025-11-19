@@ -473,9 +473,11 @@ function HospitalsTable({
   }
 
   const rows = hospitals.map((hospital) => {
-    const matching = resumen.find(
-      (item) => item.hospital_id === hospital.id
-    ) ?? { vecindarios_asignados: 0 };
+    const matching =
+      resumen.find((item) => item.hospital_id === hospital.id) ?? {
+        vecindarios_asignados: 0,
+        avg_distance: 0,
+      };
     return {
       ...hospital,
       vecindarios_asignados: matching.vecindarios_asignados,
