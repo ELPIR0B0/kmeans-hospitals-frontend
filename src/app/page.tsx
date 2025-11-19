@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ||
@@ -24,11 +24,17 @@ type Metrics = {
   max_distance: number;
   inertia: number;
   iterations: number;
+  history?: number[];
 };
 
 type HospitalSummary = {
   hospital_id: number;
   vecindarios_asignados: number;
+  avg_distance?: number;
+  coordinates?: {
+    x: number;
+    y: number;
+  };
 };
 
 type SimulationResponse = {
@@ -77,6 +83,13 @@ export default function Home() {
   const [result, setResult] = useState<SimulationResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"visual" | "metricas" | "hospitales">(
+    "visual"
+  );
+
+  useEffect(() => {
+    setActiveTab("visual");
+  }, [result?.metrics.iterations]);
 
   const handleNumberChange = (field: keyof FormState, value: string): void => {
     if (field === "random_seed") {
@@ -175,8 +188,9 @@ export default function Home() {
           <p className="eyebrow">Simulación educativa</p>
           <h1>Planificador de hospitales con K-means</h1>
           <p className="subtitle">
-            Experimenta con una cuadrícula m × m y descubre dónde ubicar K
-            hospitales para cubrir vecindarios sintéticos.
+            Experimenta con una cuadrícula m × m (interpretamos cada unidad como
+            un kilómetro) y descubre dónde ubicar K hospitales para cubrir una
+            ciudad hipotética.
           </p>
         </div>
         <div className="hero-badge">
@@ -260,18 +274,71 @@ export default function Home() {
               <h2>Resultados</h2>
               <p className="card-description">
                 Visualiza cómo quedan los vecindarios agrupados, revisa métricas
-                e interpreta la simulación.
+                expresadas en kilómetros y entiende la lógica de la simulación.
+              </p>
+              <p className="micro-copy">
+                Asumimos 1 unidad de la cuadrícula = 1 km, por lo que las
+                distancias equivalen a trayectos reales aproximados dentro de la
+                ciudad.
               </p>
             </div>
             {loading && <span className="badge">Ejecutando K-means…</span>}
           </div>
 
           {result ? (
-            <>
-              <SimulationPlot result={result} />
-              <MetricsPanel metrics={result.metrics} />
-              <HospitalsTable resumen={resumen} hospitals={result.hospitals} />
-            </>
+            <div className="tabs-wrapper">
+              <div className="tabs">
+                <button
+                  type="button"
+                  className={`tab ${activeTab === "visual" ? "active" : ""}`}
+                  onClick={() => setActiveTab("visual")}
+                >
+                  Visualización
+                </button>
+                <button
+                  type="button"
+                  className={`tab ${activeTab === "metricas" ? "active" : ""}`}
+                  onClick={() => setActiveTab("metricas")}
+                >
+                  Métricas y convergencia
+                </button>
+                <button
+                  type="button"
+                  className={`tab ${activeTab === "hospitales" ? "active" : ""}`}
+                  onClick={() => setActiveTab("hospitales")}
+                >
+                  Hospitales
+                </button>
+              </div>
+
+              <div className="tab-panel">
+                {activeTab === "visual" && (
+                  <>
+                    <SimulationPlot result={result} />
+                    <p className="micro-copy">
+                      Cada punto representa un vecindario y los colores indican
+                      el hospital más cercano; las etiquetas H0, H1, etc.
+                      corresponden a cada centroide.
+                    </p>
+                  </>
+                )}
+
+                {activeTab === "metricas" && (
+                  <div className="metrics-stack">
+                    <ConvergenceBadge iterations={result.metrics.iterations} />
+                    <MetricsPanel metrics={result.metrics} />
+                    <TrainingCharts metrics={result.metrics} resumen={resumen} />
+                  </div>
+                )}
+
+                {activeTab === "hospitales" && (
+                  <div className="hospital-stack">
+                    <HospitalCards resumen={resumen} />
+                    <HospitalsTable resumen={resumen} hospitals={result.hospitals} />
+                  </div>
+                )}
+              </div>
+            </div>
           ) : (
             <div className="empty-state">
               <p>
@@ -287,9 +354,9 @@ export default function Home() {
           <p>
             K-means agrupa vecindarios por proximidad y cada grupo recibe un
             hospital. El término <em>cluster</em> alude al conjunto de puntos
-            que comparten el mismo hospital más cercano. Las distancias
-            promedio indican el esfuerzo logístico; un valor bajo significa que,
-            en general, las familias llegan rápido a su hospital asignado.
+            que comparten el mismo hospital más cercano. Las distancias que ves
+            (en km) aproximan el tiempo de traslado: una distancia promedio
+            baja implica trayectos cortos para la mayoría de las familias.
           </p>
           <p>
             Usa el histograma de distancias y la distribución de vecindarios
@@ -361,10 +428,22 @@ function SimulationPlot({ result }: { result: SimulationResponse }) {
 
 function MetricsPanel({ metrics }: { metrics: Metrics }) {
   const items = [
-    { label: "Distancia promedio", value: formatNumber(metrics.avg_distance) },
-    { label: "Distancia máxima", value: formatNumber(metrics.max_distance) },
-    { label: "Inercia", value: formatNumber(metrics.inertia, 0) },
-    { label: "Iteraciones", value: metrics.iterations.toString() },
+    {
+      label: "Distancia promedio",
+      value: formatNumber(metrics.avg_distance),
+      unit: " km",
+    },
+    {
+      label: "Distancia máxima",
+      value: formatNumber(metrics.max_distance),
+      unit: " km",
+    },
+    {
+      label: "Inercia (km²)",
+      value: formatNumber(metrics.inertia, 0),
+      unit: "",
+    },
+    { label: "Iteraciones", value: metrics.iterations.toString(), unit: "" },
   ];
 
   return (
@@ -372,7 +451,10 @@ function MetricsPanel({ metrics }: { metrics: Metrics }) {
       {items.map((metric) => (
         <article key={metric.label} className="metric-card">
           <p className="metric-label">{metric.label}</p>
-          <p className="metric-value">{metric.value}</p>
+          <p className="metric-value">
+            {metric.value}
+            {metric.unit}
+          </p>
         </article>
       ))}
     </div>
@@ -397,6 +479,7 @@ function HospitalsTable({
     return {
       ...hospital,
       vecindarios_asignados: matching.vecindarios_asignados,
+      avg_distance: matching.avg_distance ?? 0,
     };
   });
 
@@ -410,6 +493,7 @@ function HospitalsTable({
             <th>X</th>
             <th>Y</th>
             <th>Vecindarios</th>
+            <th>Distancia media (km)</th>
           </tr>
         </thead>
         <tbody>
@@ -419,10 +503,146 @@ function HospitalsTable({
               <td>{formatNumber(row.x)}</td>
               <td>{formatNumber(row.y)}</td>
               <td>{row.vecindarios_asignados}</td>
+              <td>{formatNumber(row.avg_distance)}</td>
             </tr>
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+function ConvergenceBadge({ iterations }: { iterations?: number }) {
+  if (iterations === undefined) return null;
+  return (
+    <div className="pill">
+      Convergió en {iterations}{" "}
+      {iterations === 1 ? "iteración" : "iteraciones"}.
+    </div>
+  );
+}
+
+function TrainingCharts({
+  metrics,
+  resumen,
+}: {
+  metrics: Metrics;
+  resumen: HospitalSummary[];
+}) {
+  const hasHistory = (metrics.history ?? []).length > 1;
+  const hasResumen = resumen.length > 0;
+  if (!hasHistory && !hasResumen) return null;
+
+  return (
+    <div className="training-grid">
+      {hasHistory && (
+        <div className="dark-panel">
+          <div className="panel-header">
+            <div>
+              <h3>Línea de convergencia</h3>
+              <p>Inercia por iteración</p>
+            </div>
+          </div>
+          <ConvergenceChart history={metrics.history ?? []} />
+        </div>
+      )}
+      {hasResumen && (
+        <div className="dark-panel">
+          <div className="panel-header">
+            <div>
+              <h3>Carga por hospital</h3>
+              <p>Vecindarios agrupados</p>
+            </div>
+          </div>
+          <ClusterLoadChart resumen={resumen} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ConvergenceChart({ history }: { history: number[] }) {
+  if (!history.length) return null;
+  const max = Math.max(...history);
+  const min = Math.min(...history);
+  const range = max - min || 1;
+  const points = history.map((value, index) => {
+    const x = (index / Math.max(history.length - 1, 1)) * 100;
+    const y = 100 - ((value - min) / range) * 100;
+    return `${x},${y}`;
+  });
+  const first = history[0];
+  const last = history[history.length - 1];
+
+  return (
+    <div className="line-chart-wrapper">
+      <svg className="line-chart" viewBox="0 0 100 100" preserveAspectRatio="none">
+        <rect className="chart-surface" x="0" y="0" width="100" height="100" />
+        <line className="chart-axis" x1="0" y1="100" x2="100" y2="100" />
+        <line className="chart-axis" x1="0" y1="0" x2="0" y2="100" />
+        <polyline
+          points={points.join(" ")}
+          fill="none"
+          stroke="var(--color-viridian)"
+          strokeWidth="3"
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+      </svg>
+      <p className="chart-caption">
+        Inercia inicial: {formatNumber(first, 0)} • Final: {formatNumber(last, 0)}
+      </p>
+    </div>
+  );
+}
+
+function ClusterLoadChart({ resumen }: { resumen: HospitalSummary[] }) {
+  if (!resumen.length) return null;
+  const max = Math.max(...resumen.map((item) => item.vecindarios_asignados), 1);
+
+  return (
+    <div className="load-list">
+      {resumen.map((item) => (
+        <div key={item.hospital_id} className="load-row">
+          <div className="load-label">
+            <strong>H{item.hospital_id}</strong>
+            <span>{item.vecindarios_asignados} vecindarios</span>
+          </div>
+          <div className="load-bar">
+            <div
+              className="load-bar-fill"
+              style={{
+                width: `${(item.vecindarios_asignados / max) * 100}%`,
+              }}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function HospitalCards({ resumen }: { resumen: HospitalSummary[] }) {
+  if (!resumen.length) return null;
+  return (
+    <div className="hospital-cards">
+      {resumen.map((item) => (
+        <article key={item.hospital_id} className="hospital-card">
+          <header>
+            <p>
+              Hospital #{item.hospital_id + 1}{" "}
+              <strong>{item.vecindarios_asignados} vecindarios</strong>
+            </p>
+          </header>
+          <p className="card-label">Coordenadas</p>
+          <p className="card-value">
+            {formatNumber(item.coordinates?.x)} km,{" "}
+            {formatNumber(item.coordinates?.y)} km
+          </p>
+          <p className="card-label">Distancia media</p>
+          <p className="card-value">{formatNumber(item.avg_distance)} km</p>
+        </article>
+      ))}
     </div>
   );
 }
