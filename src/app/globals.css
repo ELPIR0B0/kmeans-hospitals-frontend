@@ -472,3 +472,138 @@ body {
     grid-column: span 1;
   }
 }
+
+/* New layout styles */
+.workspace {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.config-card {
+  flex: 0 0 320px;
+  background: var(--card-bg);
+  border-radius: 20px;
+  padding: 1.5rem;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 20px 50px rgba(60, 60, 60, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.config-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.config-form label {
+  font-weight: 600;
+  color: var(--color-ink);
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.95rem;
+}
+
+.config-form input {
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  padding: 0.65rem 0.8rem;
+  font-size: 1rem;
+  background: #fff6f6;
+}
+
+.main-area {
+  flex: 1;
+  min-width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.view-switch {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.6rem;
+}
+
+.view-button {
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  padding: 0.5rem 1rem;
+  background: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.view-button.active {
+  background: linear-gradient(135deg, var(--color-viridian), var(--color-norway));
+  color: #fff;
+  border-color: transparent;
+}
+
+.view-panel {
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  padding: 1rem;
+  background: #fff;
+  min-height: 360px;
+}
+
+.graph-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.legend {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  color: var(--color-ink);
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.9rem;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  background: var(--color-norway);
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.dot.hospital {
+  background: var(--color-viridian);
+}
+
+.resumen-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+.resumen-grid .full-width {
+  grid-column: span 2;
+}
+
+@media (max-width: 700px) {
+  .resumen-grid .full-width {
+    grid-column: span 1;
+  }
+}
+
+.map-hint {
+  background: #fffaf0;
+}
+
+.main-area .info-block {
+  margin-top: 0.5rem;
+}
