@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ||
@@ -83,12 +83,8 @@ export default function Home() {
   const [result, setResult] = useState<SimulationResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [activeView, setActiveView] =
-    useState<"grafica" | "resumen" | "mapa">("grafica");
-
-  useEffect(() => {
-    setActiveView("grafica");
-  }, [result?.metrics.iterations]);
+  const [activeTab, setActiveTab] =
+    useState<"grafico" | "resumen" | "resultados">("grafico");
 
   const resumen = useMemo(() => {
     if (!result?.resumen_hospitales) return [];
@@ -182,170 +178,130 @@ export default function Home() {
   };
 
   return (
-    <div className="page-shell">
-      <header className="hero">
-        <div>
-          <p className="eyebrow">Simulación educativa</p>
-          <h1>Calculadora K-means para hospitales</h1>
-          <p className="subtitle">
-            Define cuántos hospitales necesitas en una cuadrícula m × m, genera
-            vecindarios sintéticos y analiza los resultados con gráficos claros.
-          </p>
-        </div>
-        <div className="hero-badge">
-          <span>Backend</span>
-          <code>{API_BASE_URL.replace(/^https?:\/\//, "")}</code>
-        </div>
-      </header>
-
-      <section className="workspace">
-        <aside className="config-card">
+    <div className="page-shell flat">
+      <section className="config-area">
+        <div className="config-form-wrapper">
           <h2>Configuración</h2>
           <form className="config-form" onSubmit={handleSubmit}>
-            <label>
-              Número de hospitales (K)
-              <input
-                type="number"
-                min={1}
-                value={form.k}
-                onChange={(event) => handleNumberChange("k", event.target.value)}
-                required
-              />
-            </label>
-            <label>
-              Número de vecindarios
-              <input
-                type="number"
-                min={10}
-                value={form.num_neighborhoods}
-                onChange={(event) =>
-                  handleNumberChange("num_neighborhoods", event.target.value)
-                }
-                required
-              />
-            </label>
-            <label>
-              Tamaño de la cuadrícula (m)
-              <input
-                type="number"
-                min={10}
-                value={form.m}
-                onChange={(event) => handleNumberChange("m", event.target.value)}
-                required
-              />
-            </label>
-            <label>
-              Semilla aleatoria (opcional)
-              <input
-                type="number"
-                value={form.random_seed ?? ""}
-                onChange={(event) =>
-                  handleNumberChange("random_seed", event.target.value)
-                }
-              />
-            </label>
-            <button className="primary-button" type="submit" disabled={loading}>
-              {loading ? "Calculando…" : "Calcular"}
+            <div className="form-row">
+              <label>
+                Hospitales (K)
+                <input
+                  type="number"
+                  min={1}
+                  value={form.k}
+                  onChange={(event) => handleNumberChange("k", event.target.value)}
+                  required
+                />
+              </label>
+              <label>
+                Vecindarios
+                <input
+                  type="number"
+                  min={10}
+                  value={form.num_neighborhoods}
+                  onChange={(event) =>
+                    handleNumberChange("num_neighborhoods", event.target.value)
+                  }
+                  required
+                />
+              </label>
+              <label>
+                Tamaño m (km)
+                <input
+                  type="number"
+                  min={10}
+                  value={form.m}
+                  onChange={(event) => handleNumberChange("m", event.target.value)}
+                  required
+                />
+              </label>
+              <label>
+                Semilla (opcional)
+                <input
+                  type="number"
+                  value={form.random_seed ?? ""}
+                  onChange={(event) =>
+                    handleNumberChange("random_seed", event.target.value)
+                  }
+                />
+              </label>
+            </div>
+            <button className="primary-button block" type="submit" disabled={loading}>
+              {loading ? "Procesando…" : "Ejecutar simulación"}
             </button>
+            {errorMessage && (
+              <p role="alert" className="error-message">
+                {errorMessage}
+              </p>
+            )}
           </form>
-
-          {errorMessage && (
-            <p role="alert" className="error-message">
-              {errorMessage}
-            </p>
-          )}
-
-          {result ? (
-            <QuickMetrics metrics={result.metrics} />
-          ) : (
-            <p className="micro-copy">
-              Ejecuta una simulación para obtener distancias promedio, inercia e
-              iteraciones del algoritmo.
-            </p>
-          )}
-
-          <div className="info-block">
-            <h3>Consejos rápidos</h3>
-            <ul>
-              <li>
-                Mantén K por debajo del número de vecindarios para evitar clusters
-                vacíos.
-              </li>
-              <li>
-                Usa la misma semilla para comparar escenarios o modifícala para
-                nuevas distribuciones.
-              </li>
-              <li>
-                Observa la inercia: si deja de bajar drásticamente, puede ser
-                suficiente número de hospitales.
-              </li>
-            </ul>
-          </div>
-        </aside>
-
-        <section className="main-area">
-          <ViewSwitch active={activeView} onChange={setActiveView} />
-          <div className="view-panel">
-            {activeView === "grafica" && (
-              <GraphPanel result={result} loading={loading} />
-            )}
-            {activeView === "resumen" && result && (
-              <ResumenPanel metrics={result.metrics} resumen={resumen} />
-            )}
-            {activeView === "mapa" && <MapHint />}
-          </div>
-        </section>
+        </div>
+        <div className="tips-panel">
+          <h3>Consejos rápidos</h3>
+          <ul>
+            <li>Usa K menor al número de vecindarios para evitar clusters vacíos.</li>
+            <li>Prueba distintas semillas para comparar distribuciones.</li>
+            <li>Observa la inercia: valores planos sugieren un K adecuado.</li>
+          </ul>
+        </div>
       </section>
 
-      <section className="explain-card">
-        <h2>Interpretación de los resultados</h2>
+      <section className="description-panel">
         <p>
-          Cada punto representa un vecindario y se asigna al hospital más cercano
-          según la distancia euclidiana. Las distancias expresadas en kilómetros
-          ayudan a estimar tiempos de traslado. Revisa también las cargas por
-          hospital: si hay desequilibrio o distancias altas, considera ajustar
-          los parámetros.
-        </p>
-        <p>
-          En un escenario real, estos resultados sirven como punto de partida
-          para evaluar inversión, cobertura y tiempos de respuesta en servicios
-          de salud urbanos.
+          Esta calculadora ejecuta K-means sobre una cuadrícula m × m interpretada
+          como kilómetros. Los puntos representan vecindarios generados
+          aleatoriamente y los marcadores corresponden a hospitales. Explora cada
+          pestaña para revisar el gráfico, los análisis y un listado detallado de
+          resultados.
         </p>
       </section>
-    </div>
-  );
-}
 
-function ViewSwitch({
-  active,
-  onChange,
-}: {
-  active: "grafica" | "resumen" | "mapa";
-  onChange: (value: "grafica" | "resumen" | "mapa") => void;
-}) {
-  return (
-    <div className="view-switch">
-      <button
-        type="button"
-        className={`view-button ${active === "grafica" ? "active" : ""}`}
-        onClick={() => onChange("grafica")}
-      >
-        Ver gráfico
-      </button>
-      <button
-        type="button"
-        className={`view-button ${active === "resumen" ? "active" : ""}`}
-        onClick={() => onChange("resumen")}
-      >
-        Resumen analítico
-      </button>
-      <button
-        type="button"
-        className={`view-button ${active === "mapa" ? "active" : ""}`}
-        onClick={() => onChange("mapa")}
-      >
-        Vista mapa
-      </button>
+      <section className="tabs-panel">
+        <div className="tabs-row">
+          <button
+            type="button"
+            className={activeTab === "grafico" ? "tab-btn active" : "tab-btn"}
+            onClick={() => setActiveTab("grafico")}
+          >
+            Vista gráfica
+          </button>
+          <button
+            type="button"
+            className={activeTab === "resumen" ? "tab-btn active" : "tab-btn"}
+            onClick={() => setActiveTab("resumen")}
+          >
+            Resumen analítico
+          </button>
+          <button
+            type="button"
+            className={activeTab === "resultados" ? "tab-btn active" : "tab-btn"}
+            onClick={() => setActiveTab("resultados")}
+          >
+            Resultados detallados
+          </button>
+        </div>
+
+        <div className="tab-content">
+          {activeTab === "grafico" && (
+            <GraphPanel result={result} loading={loading} />
+          )}
+          {activeTab === "resumen" && result && (
+            <ResumenPanel metrics={result.metrics} resumen={resumen} />
+          )}
+          {activeTab === "resultados" && (
+            <ResultsPanel result={result} resumen={resumen} />
+          )}
+          {!result && activeTab !== "grafico" && (
+            <div className="empty-state">
+              <p>
+                Ejecuta una simulación para habilitar esta sección. Aquí verás los
+                análisis cuando existan datos disponibles.
+              </p>
+            </div>
+          )}
+        </div>
+      </section>
     </div>
   );
 }
@@ -369,8 +325,8 @@ function GraphPanel({
     return (
       <div className="graph-card empty-state">
         <p>
-          Aún no hay datos. Configura los parámetros y presiona “Calcular” para
-          visualizar la cuadrícula.
+          Aún no hay datos. Configura los parámetros y presiona “Ejecutar
+          simulación” para visualizar la cuadrícula.
         </p>
       </div>
     );
@@ -383,11 +339,11 @@ function GraphPanel({
       <div className="legend">
         <span className="legend-item">
           <span className="dot" />
-          Vecindarios (clusters)
+          Vecindarios por hospital
         </span>
         <span className="legend-item">
           <span className="dot hospital" />
-          Hospitales
+          Hospitales (H0…H{result.hospitals.length - 1})
         </span>
       </div>
     </div>
@@ -407,7 +363,7 @@ function ResumenPanel({
         <div className="panel-header">
           <div>
             <h3>Tendencia de convergencia</h3>
-            <p>Observa cómo disminuye la inercia por iteración.</p>
+            <p>Inercia de K-means por iteración.</p>
           </div>
         </div>
         <ConvergenceChart history={metrics.history ?? []} />
@@ -421,28 +377,46 @@ function ResumenPanel({
         </div>
         <ClusterLoadChart resumen={resumen} />
       </article>
-      <article className="analytics-card full-width">
-        <div className="panel-header">
-          <div>
-            <h3>Detalle por hospital</h3>
-            <p>Coordenadas y distancia media asignada.</p>
-          </div>
-        </div>
-        <HospitalList resumen={resumen} />
-      </article>
     </div>
   );
 }
 
-function MapHint() {
+function ResultsPanel({
+  result,
+  resumen,
+}: {
+  result: SimulationResponse | null;
+  resumen: HospitalSummary[];
+}) {
+  if (!result) return null;
   return (
-    <div className="graph-card map-hint">
-      <h3>Vista mapa (conceptual)</h3>
-      <p>
-        Aquí podrías integrar un visor geográfico como Leaflet o Mapbox para
-        posicionar los hospitales sobre calles reales. Por ahora mostramos una
-        descripción y mantenemos la coherencia con la cuadrícula.
-      </p>
+    <div className="results-grid">
+      <article>
+        <h3>Métricas principales</h3>
+        <QuickMetrics metrics={result.metrics} />
+      </article>
+      <article>
+        <h3>Interpretación</h3>
+        <p>
+          El algoritmo ubicó {result.hospitals.length} hospitales para cubrir{" "}
+          {result.neighborhoods.length} vecindarios en una cuadrícula de{" "}
+          {result.grid_size} km. La distancia promedio es{" "}
+          {formatNumber(result.metrics.avg_distance)} km y la máxima alcanza{" "}
+          {formatNumber(result.metrics.max_distance)} km. Estas cifras representan
+          el esfuerzo aproximado que realizaría una persona para llegar a su
+          hospital más cercano.
+        </p>
+        <p>
+          Revisa las iteraciones empleadas (
+          {result.metrics.iterations}) y la historia de inercia para evaluar si el
+          algoritmo convergió rápidamente o si debes reconfigurar parámetros como
+          la semilla o el número de iteraciones máximas.
+        </p>
+      </article>
+      <article>
+        <h3>Detalle por hospital</h3>
+        <HospitalList resumen={resumen} />
+      </article>
     </div>
   );
 }
@@ -494,40 +468,32 @@ function SimulationPlot({ result }: { result: SimulationResponse }) {
         role="img"
         aria-label="Cuadrícula de vecindarios y hospitales"
       >
-        <rect
-          width="100%"
-          height="100%"
-          rx={18}
-          fill="#ffffff"
-          stroke="#ECBDBF"
-          strokeWidth={1}
-        />
+        <rect width="100%" height="100%" fill="#ffffff" stroke="#b5b5b5" />
         {neighborhoods.map((neigh) => (
           <circle
             key={neigh.id}
             cx={neigh.x}
             cy={invertedY(neigh.y)}
-            r={1.4}
+            r={1.5}
             fill={clusterPalette[neigh.cluster % clusterPalette.length]}
-            opacity={0.8}
+            opacity={0.85}
           />
         ))}
         {hospitals.map((hospital) => (
           <g key={hospital.id}>
-            <circle
-              cx={hospital.x}
-              cy={invertedY(hospital.y)}
-              r={4.5}
-              fill="#FFFFFF"
-              stroke="#3D8B7D"
-              strokeWidth={1.5}
+            <rect
+              x={hospital.x - 3}
+              y={invertedY(hospital.y) - 3}
+              width={6}
+              height={6}
+              fill="#1d1d1b"
             />
             <text
               x={hospital.x}
               y={invertedY(hospital.y) + 10}
               textAnchor="middle"
               fontSize={4}
-              fill="#3D8B7D"
+              fill="#1d1d1b"
             >
               H{hospital.id}
             </text>
@@ -554,13 +520,13 @@ function ConvergenceChart({ history }: { history: number[] }) {
   return (
     <div className="line-chart-wrapper">
       <svg className="line-chart" viewBox="0 0 100 100" preserveAspectRatio="none">
-        <rect className="chart-surface" x="0" y="0" width="100" height="100" />
+        <rect className="chart-surface" width="100" height="100" />
         <line className="chart-axis" x1="0" y1="100" x2="100" y2="100" />
         <line className="chart-axis" x1="0" y1="0" x2="0" y2="100" />
         <polyline
           points={points.join(" ")}
           fill="none"
-          stroke="var(--color-viridian)"
+          stroke="#3D8B7D"
           strokeWidth="3"
           strokeLinejoin="round"
           strokeLinecap="round"
@@ -602,25 +568,23 @@ function ClusterLoadChart({ resumen }: { resumen: HospitalSummary[] }) {
 function HospitalList({ resumen }: { resumen: HospitalSummary[] }) {
   if (!resumen.length) return null;
   return (
-    <div className="hospital-list">
+    <div className="hospital-list flat">
       {resumen.map((item) => (
         <article key={item.hospital_id} className="hospital-item">
           <header>
             <p>Hospital #{item.hospital_id + 1}</p>
             <strong>{item.vecindarios_asignados} vecindarios</strong>
           </header>
-          <div className="hospital-meta">
-            <div>
-              <span>Coordenadas</span>
-              <p>
-                {formatNumber(item.coordinates?.x)} km ·{" "}
-                {formatNumber(item.coordinates?.y)} km
-              </p>
-            </div>
-            <div>
-              <span>Distancia media</span>
-              <p>{formatNumber(item.avg_distance)} km</p>
-            </div>
+          <div>
+            <span>Coordenadas (km)</span>
+            <p>
+              {formatNumber(item.coordinates?.x)} ·{" "}
+              {formatNumber(item.coordinates?.y)}
+            </p>
+          </div>
+          <div>
+            <span>Distancia media</span>
+            <p>{formatNumber(item.avg_distance)} km</p>
           </div>
         </article>
       ))}
