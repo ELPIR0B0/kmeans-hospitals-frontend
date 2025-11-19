@@ -54,11 +54,11 @@ type FormState = {
 };
 
 const clusterPalette = [
-  "#3D8B7D", // Viridian
-  "#8FBC91", // Norway
-  "#DBC557", // Tacha
-  "#ECBDBF", // Beauty Bush
-  "#F9DFE0", // We Peep
+  "#3D8B7D",
+  "#8FBC91",
+  "#DBC557",
+  "#ECBDBF",
+  "#F9DFE0",
   "#579487",
   "#C28D5F",
   "#9E6D9A",
@@ -73,7 +73,7 @@ const initialForm: FormState = {
 
 const formatNumber = (value?: number, digits = 2) => {
   if (value === undefined || Number.isNaN(value)) {
-    return "—";
+    return "--";
   }
   return value.toFixed(digits);
 };
@@ -83,12 +83,10 @@ export default function Home() {
   const [result, setResult] = useState<SimulationResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"visual" | "metricas" | "hospitales">(
-    "visual"
-  );
+  const [accent, setAccent] = useState<string>("visual");
 
   useEffect(() => {
-    setActiveTab("visual");
+    setAccent("visual");
   }, [result?.metrics.iterations]);
 
   const handleNumberChange = (field: keyof FormState, value: string): void => {
@@ -145,6 +143,7 @@ export default function Home() {
         num_neighborhoods: Number(form.num_neighborhoods),
         k: Number(form.k),
       };
+
       if (form.random_seed !== "" && form.random_seed !== undefined) {
         payload.random_seed = Number(form.random_seed);
       }
@@ -188,23 +187,22 @@ export default function Home() {
           <p className="eyebrow">Simulación educativa</p>
           <h1>Planificador de hospitales con K-means</h1>
           <p className="subtitle">
-            Experimenta con una cuadrícula m × m (interpretamos cada unidad como
-            un kilómetro) y descubre dónde ubicar K hospitales para cubrir una
-            ciudad hipotética.
+            Construye escenarios para ubicar hospitales en una cuadrícula m × m
+            (cada unidad equivale a 1 km) y observa el impacto en las distancias.
           </p>
         </div>
         <div className="hero-badge">
-          <span>Backend:</span>
+          <span>Backend conectado</span>
           <code>{API_BASE_URL.replace(/^https?:\/\//, "")}</code>
         </div>
       </header>
 
-      <main className="dashboard">
-        <section className="card form-card">
-          <h2>Parámetros de la simulación</h2>
+      <main className="layout-grid">
+        <section className="smart-panel">
+          <h2>Parámetros de simulación</h2>
           <p className="card-description">
-            Ajusta los valores y presiona <strong>Simular</strong> para pedirle
-            al backend una nueva corrida de K-means.
+            Ajusta los valores y ejecuta la simulación para generar vecindarios
+            sintéticos y ubicar K hospitales automáticamente.
           </p>
 
           <form className="form-grid" onSubmit={handleSubmit}>
@@ -214,9 +212,7 @@ export default function Home() {
                 type="number"
                 min={10}
                 value={form.m}
-                onChange={(event) =>
-                  handleNumberChange("m", event.target.value)
-                }
+                onChange={(event) => handleNumberChange("m", event.target.value)}
                 required
               />
             </label>
@@ -266,106 +262,118 @@ export default function Home() {
               {errorMessage}
             </p>
           )}
-        </section>
-
-        <section className="card results-card">
-          <div className="results-header">
-            <div>
-              <h2>Resultados</h2>
-              <p className="card-description">
-                Visualiza cómo quedan los vecindarios agrupados, revisa métricas
-                expresadas en kilómetros y entiende la lógica de la simulación.
-              </p>
-              <p className="micro-copy">
-                Asumimos 1 unidad de la cuadrícula = 1 km, por lo que las
-                distancias equivalen a trayectos reales aproximados dentro de la
-                ciudad.
-              </p>
-            </div>
-            {loading && <span className="badge">Ejecutando K-means…</span>}
-          </div>
 
           {result ? (
-            <div className="tabs-wrapper">
-              <div className="tabs">
-                <button
-                  type="button"
-                  className={`tab ${activeTab === "visual" ? "active" : ""}`}
-                  onClick={() => setActiveTab("visual")}
-                >
-                  Visualización
-                </button>
-                <button
-                  type="button"
-                  className={`tab ${activeTab === "metricas" ? "active" : ""}`}
-                  onClick={() => setActiveTab("metricas")}
-                >
-                  Métricas y convergencia
-                </button>
-                <button
-                  type="button"
-                  className={`tab ${activeTab === "hospitales" ? "active" : ""}`}
-                  onClick={() => setActiveTab("hospitales")}
-                >
-                  Hospitales
-                </button>
+            <QuickMetrics metrics={result.metrics} />
+          ) : (
+            <p className="micro-copy">
+              Después de simular verás aquí las distancias promedio, la inercia y
+              las iteraciones empleadas por K-means.
+            </p>
+          )}
+
+          <div className="info-block">
+            <h3>¿Qué significa cada métrica?</h3>
+            <ul>
+              <li>
+                <strong>Distancia promedio:</strong> traslado típico desde un
+                vecindario al hospital más cercano.
+              </li>
+              <li>
+                <strong>Inercia:</strong> suma de distancias al cuadrado; indica
+                qué tan compactos son los clusters.
+              </li>
+              <li>
+                <strong>Iteraciones:</strong> pasos necesarios para converger;
+                ayuda a entender la estabilidad del modelo.
+              </li>
+            </ul>
+          </div>
+        </section>
+
+        <section className="visual-panel">
+          {result ? (
+            <>
+              <SimulationPlot result={result} />
+              <div className="summary-strip">
+                <ConvergenceBadge iterations={result.metrics.iterations} />
+                <p>
+                  Se agruparon {result.neighborhoods.length} vecindarios dentro
+                  de una cuadrícula de {result.grid_size} km, ubicando{" "}
+                  {result.hospitals.length} hospitales.
+                </p>
               </div>
-
-              <div className="tab-panel">
-                {activeTab === "visual" && (
-                  <>
-                    <SimulationPlot result={result} />
-                    <p className="micro-copy">
-                      Cada punto representa un vecindario y los colores indican
-                      el hospital más cercano; las etiquetas H0, H1, etc.
-                      corresponden a cada centroide.
-                    </p>
-                  </>
-                )}
-
-                {activeTab === "metricas" && (
-                  <div className="metrics-stack">
-                    <ConvergenceBadge iterations={result.metrics.iterations} />
-                    <MetricsPanel metrics={result.metrics} />
-                    <TrainingCharts metrics={result.metrics} resumen={resumen} />
-                  </div>
-                )}
-
-                {activeTab === "hospitales" && (
-                  <div className="hospital-stack">
-                    <HospitalCards resumen={resumen} />
-                    <HospitalsTable resumen={resumen} hospitals={result.hospitals} />
-                  </div>
-                )}
-              </div>
-            </div>
+            </>
           ) : (
             <div className="empty-state">
               <p>
-                Ejecuta tu primera simulación para ver la cuadrícula y las
-                métricas de distancia.
+                Aún no hay resultados. Configura una simulación y observa cómo se
+                distribuyen los vecindarios por hospital.
               </p>
             </div>
           )}
         </section>
-
-        <section className="card explain-card">
-          <h2>¿Cómo interpretar estos resultados?</h2>
-          <p>
-            K-means agrupa vecindarios por proximidad y cada grupo recibe un
-            hospital. El término <em>cluster</em> alude al conjunto de puntos
-            que comparten el mismo hospital más cercano. Las distancias que ves
-            (en km) aproximan el tiempo de traslado: una distancia promedio
-            baja implica trayectos cortos para la mayoría de las familias.
-          </p>
-          <p>
-            Usa el histograma de distancias y la distribución de vecindarios
-            por hospital (en la tabla) para detectar saturaciones o zonas
-            desatendidas. Si aumentas K verás cómo la inercia y la distancia
-            promedio disminuyen, pero con un costo operativo mayor.
-          </p>
-        </section>
       </main>
+
+      {result && (
+        <>
+          <section className="analytics-section">
+            <article className="analytics-card">
+              <div className="panel-header">
+                <div>
+                  <h3>Tendencia de convergencia</h3>
+                  <p>Inercia por iteración</p>
+                </div>
+              </div>
+              <ConvergenceChart history={result.metrics.history ?? []} />
+            </article>
+
+            <article className="analytics-card">
+              <div className="panel-header">
+                <div>
+                  <h3>Carga por hospital</h3>
+                  <p>Vecindarios atendidos y equilibrio de clusters</p>
+                </div>
+              </div>
+              <ClusterLoadChart resumen={resumen} />
+            </article>
+          </section>
+
+          <section className="hospital-section">
+            <div className="hospital-header">
+              <div>
+                <h2>Hospitales sugeridos</h2>
+                <p>
+                  Coordenadas finales y cobertura de cada hospital en kilómetros.
+                </p>
+              </div>
+              <button
+                type="button"
+                className={`toggle ${accent === "visual" ? "active" : ""}`}
+                onClick={() => setAccent("visual")}
+              >
+                Resaltar en mapa
+              </button>
+            </div>
+            <HospitalList resumen={resumen} />
+          </section>
+        </>
+      )}
+
+      <section className="explain-card">
+        <h2>¿Cómo interpretar estos resultados?</h2>
+        <p>
+          K-means agrupa vecindarios por proximidad y cada grupo recibe un
+          hospital. El término <em>cluster</em> alude al conjunto de puntos que
+          comparten el mismo hospital más cercano. Las distancias que ves (en km)
+          aproximan el esfuerzo de traslado.
+        </p>
+        <p>
+          Usa los gráficos para detectar saturaciones: si un hospital concentra
+          demasiados vecindarios o tiene distancias medias altas, quizá debas
+          incrementar K o reajustar parámetros como m y la semilla.
+        </p>
+      </section>
     </div>
   );
 }
@@ -426,94 +434,6 @@ function SimulationPlot({ result }: { result: SimulationResponse }) {
   );
 }
 
-function MetricsPanel({ metrics }: { metrics: Metrics }) {
-  const items = [
-    {
-      label: "Distancia promedio",
-      value: formatNumber(metrics.avg_distance),
-      unit: " km",
-    },
-    {
-      label: "Distancia máxima",
-      value: formatNumber(metrics.max_distance),
-      unit: " km",
-    },
-    {
-      label: "Inercia (km²)",
-      value: formatNumber(metrics.inertia, 0),
-      unit: "",
-    },
-    { label: "Iteraciones", value: metrics.iterations.toString(), unit: "" },
-  ];
-
-  return (
-    <div className="metrics-grid">
-      {items.map((metric) => (
-        <article key={metric.label} className="metric-card">
-          <p className="metric-label">{metric.label}</p>
-          <p className="metric-value">
-            {metric.value}
-            {metric.unit}
-          </p>
-        </article>
-      ))}
-    </div>
-  );
-}
-
-function HospitalsTable({
-  resumen,
-  hospitals,
-}: {
-  resumen: HospitalSummary[];
-  hospitals: Hospital[];
-}) {
-  if (hospitals.length === 0) {
-    return null;
-  }
-
-  const rows = hospitals.map((hospital) => {
-    const matching =
-      resumen.find((item) => item.hospital_id === hospital.id) ?? {
-        vecindarios_asignados: 0,
-        avg_distance: 0,
-      };
-    return {
-      ...hospital,
-      vecindarios_asignados: matching.vecindarios_asignados,
-      avg_distance: matching.avg_distance ?? 0,
-    };
-  });
-
-  return (
-    <div className="table-wrapper">
-      <h3>Hospitales sugeridos</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>X</th>
-            <th>Y</th>
-            <th>Vecindarios</th>
-            <th>Distancia media (km)</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr key={row.id}>
-              <td>H{row.id}</td>
-              <td>{formatNumber(row.x)}</td>
-              <td>{formatNumber(row.y)}</td>
-              <td>{row.vecindarios_asignados}</td>
-              <td>{formatNumber(row.avg_distance)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
 function ConvergenceBadge({ iterations }: { iterations?: number }) {
   if (iterations === undefined) return null;
   return (
@@ -524,41 +444,24 @@ function ConvergenceBadge({ iterations }: { iterations?: number }) {
   );
 }
 
-function TrainingCharts({
-  metrics,
-  resumen,
-}: {
-  metrics: Metrics;
-  resumen: HospitalSummary[];
-}) {
-  const hasHistory = (metrics.history ?? []).length > 1;
-  const hasResumen = resumen.length > 0;
-  if (!hasHistory && !hasResumen) return null;
-
+function QuickMetrics({ metrics }: { metrics: Metrics }) {
+  const items = [
+    { label: "Distancia promedio", value: formatNumber(metrics.avg_distance), unit: " km" },
+    { label: "Distancia máxima", value: formatNumber(metrics.max_distance), unit: " km" },
+    { label: "Inercia (km²)", value: formatNumber(metrics.inertia, 0), unit: "" },
+    { label: "Iteraciones", value: metrics.iterations.toString(), unit: "" },
+  ];
   return (
-    <div className="training-grid">
-      {hasHistory && (
-        <div className="dark-panel">
-          <div className="panel-header">
-            <div>
-              <h3>Línea de convergencia</h3>
-              <p>Inercia por iteración</p>
-            </div>
-          </div>
-          <ConvergenceChart history={metrics.history ?? []} />
-        </div>
-      )}
-      {hasResumen && (
-        <div className="dark-panel">
-          <div className="panel-header">
-            <div>
-              <h3>Carga por hospital</h3>
-              <p>Vecindarios agrupados</p>
-            </div>
-          </div>
-          <ClusterLoadChart resumen={resumen} />
-        </div>
-      )}
+    <div className="quick-metrics">
+      {items.map((item) => (
+        <article key={item.label} className="metric-card">
+          <p className="metric-label">{item.label}</p>
+          <p className="metric-value">
+            {item.value}
+            {item.unit}
+          </p>
+        </article>
+      ))}
     </div>
   );
 }
@@ -624,25 +527,29 @@ function ClusterLoadChart({ resumen }: { resumen: HospitalSummary[] }) {
   );
 }
 
-function HospitalCards({ resumen }: { resumen: HospitalSummary[] }) {
+function HospitalList({ resumen }: { resumen: HospitalSummary[] }) {
   if (!resumen.length) return null;
   return (
-    <div className="hospital-cards">
+    <div className="hospital-list">
       {resumen.map((item) => (
-        <article key={item.hospital_id} className="hospital-card">
+        <article key={item.hospital_id} className="hospital-item">
           <header>
-            <p>
-              Hospital #{item.hospital_id + 1}{" "}
-              <strong>{item.vecindarios_asignados} vecindarios</strong>
-            </p>
+            <p>Hospital #{item.hospital_id + 1}</p>
+            <strong>{item.vecindarios_asignados} vecindarios</strong>
           </header>
-          <p className="card-label">Coordenadas</p>
-          <p className="card-value">
-            {formatNumber(item.coordinates?.x)} km,{" "}
-            {formatNumber(item.coordinates?.y)} km
-          </p>
-          <p className="card-label">Distancia media</p>
-          <p className="card-value">{formatNumber(item.avg_distance)} km</p>
+          <div className="hospital-meta">
+            <div>
+              <span>Coordenadas</span>
+              <p>
+                {formatNumber(item.coordinates?.x)} km ·{" "}
+                {formatNumber(item.coordinates?.y)} km
+              </p>
+            </div>
+            <div>
+              <span>Distancia media</span>
+              <p>{formatNumber(item.avg_distance)} km</p>
+            </div>
+          </div>
         </article>
       ))}
     </div>
